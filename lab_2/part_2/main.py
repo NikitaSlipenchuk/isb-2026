@@ -7,7 +7,7 @@ from const import P_VALUE, PI, FILE, OUTPUT_FILE
 def freq_test(seq: str) -> float:
     """frecuency test"""
     s_n = (seq.count('1')-seq.count('0'))/math.sqrt(len(seq))
-    p_value = math.erfc(s_n / math.sqrt(2))
+    p_value = math.erfc(abs(s_n) / math.sqrt(2))
     return p_value
 
 def replay_test(seq: str) -> float:
