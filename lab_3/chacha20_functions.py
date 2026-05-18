@@ -9,17 +9,17 @@ def gen_chacha20_key():
     return:
         a random sequence of 32 bytes 
     """ 
-    return os.urandom(16)
+    return os.urandom(32)
 
 
 def gen_nonce():
     """
-    create 128 bits one-time nonce number
+    create 96 bits one-time nonce number
 
     return:
-        A random sequence of 16 bytes
+        A random sequence of 12 bytes 
     """
-    return os.urandom(16)
+    return os.urandom(12)
 
 
 def encrypt_chacha20(data:bytes, key:bytes, nonce:bytes) -> bytes:
