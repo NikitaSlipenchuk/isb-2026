@@ -1,9 +1,10 @@
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
-from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives import serialization, hashes, asymmetric
 from cryptography.hazmat.primitives.serialization import load_pem_public_key, load_pem_private_key
+from typing import Tuple
 
 
-def gen_rsa_keys():
+def gen_rsa_keys() -> Tuple[rsa.RSAPrivateKey, rsa.RSAPublicKey]:
     """
     Function generate public and private keys for RSA
     
@@ -16,7 +17,7 @@ def gen_rsa_keys():
     return private_key, public_key
 
 
-def serialize_public_key(public_key, public_key_path: str):
+def serialize_public_key(public_key, public_key_path: str) -> None:
     """
     save key in the .pem format
 
@@ -51,7 +52,7 @@ def serialize_public_key(public_key, public_key_path: str):
         exit(2)
 
 
-def serialize_private_key(private_key, private_key_path: str):
+def serialize_private_key(private_key, private_key_path: str) -> None:
     """
     save key in the .pem format
 
@@ -88,7 +89,7 @@ def serialize_private_key(private_key, private_key_path: str):
         exit(2)
 
 
-def deserialize_public_key(public_key_path: str):
+def deserialize_public_key(public_key_path: str) -> rsa.RSAPublicKey:
     """
     read key in the .pem format
 
@@ -125,7 +126,7 @@ def deserialize_public_key(public_key_path: str):
         print(e)
         exit(2)
 
-def deserialize_private_key(private_key_path: str):
+def deserialize_private_key(private_key_path: str) -> rsa.RSAPrivateKey:
     """
     read key in the .pem format
 
@@ -166,7 +167,7 @@ def deserialize_private_key(private_key_path: str):
         exit(2)
 
 
-def encrypt_data_rsa(text:str, public_key):
+def encrypt_data_rsa(text:str, public_key) -> bytes:
     """
     Encrypt data with rsa public key
 
@@ -183,7 +184,7 @@ def encrypt_data_rsa(text:str, public_key):
     return c_text
 
 
-def decrypt_data_rsa(text:str, private_key):
+def decrypt_data_rsa(text:str, private_key) ->bytes:
     """
     Decrypt data with rsa public key
 
