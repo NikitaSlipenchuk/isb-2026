@@ -2,6 +2,21 @@ import os
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms
 
 
+_crypto_config = {
+    "chacha20_key_size": 32,
+    "nonce_size": 16
+}
+
+
+def set_crypto_config(config: dict) -> None:
+    """Set crypto configuration from external source."""
+    global _crypto_config
+    if "chacha20_key_size" in config:
+        _crypto_config["chacha20_key_size"] = config["chacha20_key_size"]
+    if "nonce_size" in config:
+        _crypto_config["nonce_size"] = config["nonce_size"]
+
+
 def gen_chacha20_key():
     """
     create 256 bits symmetric key
@@ -9,7 +24,7 @@ def gen_chacha20_key():
     return:
         a random sequence of 32 bytes 
     """ 
-    return os.urandom(32)
+    return os.urandom(_crypto_config["chacha20_key_size"])
 
 
 def gen_nonce():
@@ -19,10 +34,10 @@ def gen_nonce():
     return:
         A random sequence of 16 bytes 
     """
-    return os.urandom(16)
+    return os.urandom(_crypto_config["nonce_size"])
 
 
-def encrypt_chacha20(data:bytes, key:bytes, nonce:bytes) -> bytes:
+def encrypt_chacha20(data: bytes, key: bytes, nonce: bytes) -> bytes:
     """
     encrypt data with chacha20 ciper
 
@@ -52,7 +67,7 @@ def encrypt_chacha20(data:bytes, key:bytes, nonce:bytes) -> bytes:
         raise RuntimeError(f"ChaCha20 encryption error: {e}") from e
     
 
-def decrypt_chacha20(data:bytes, key:bytes, nonce:bytes) -> bytes:
+def decrypt_chacha20(data: bytes, key: bytes, nonce: bytes) -> bytes:
     """
     decrypt data with chacha20 ciper
 

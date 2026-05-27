@@ -1,11 +1,27 @@
 import os
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
-from cryptography.hazmat.primitives import serialization, hashes, asymmetric
+from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.serialization import load_pem_public_key, load_pem_private_key
 from typing import Tuple
 from cryptography.exceptions import InvalidSignature, UnsupportedAlgorithm
 
 from file_utils import write_bin_file, read_bin_file
+
+
+_rsa_config = {
+    "rsa_key_size": 2048,
+    "rsa_public_exponent": 65537
+}
+
+
+def set_rsa_config(config: dict) -> None:
+    """Set RSA configuration from external source."""
+    global _rsa_config
+    if "rsa_key_size" in config:
+        _rsa_config["rsa_key_size"] = config["rsa_key_size"]
+    if "rsa_public_exponent" in config:
+        _rsa_config["rsa_public_exponent"] = config["rsa_public_exponent"]
+
 
 def gen_rsa_keys() -> Tuple[rsa.RSAPrivateKey, rsa.RSAPublicKey]:
     """
@@ -15,7 +31,10 @@ def gen_rsa_keys() -> Tuple[rsa.RSAPrivateKey, rsa.RSAPublicKey]:
         pair of public and private RSA keys
     """
     try:
-        keys = rsa.generate_private_key( public_exponent=65537, key_size=2048)
+        keys = rsa.generate_private_key(
+            public_exponent=_rsa_config["rsa_public_exponent"], 
+            key_size=_rsa_config["rsa_key_size"]
+        )
         private_key = keys
         public_key = keys.public_key()
         return private_key, public_key
@@ -121,8 +140,10 @@ def encrypt_data_rsa(text: bytes, public_key) -> bytes:
     """
     try: 
         c_text = public_key.encrypt(text, padding.OAEP(
-        mgf=padding.MGF1(algorithm=hashes.SHA256()),
-        algorithm=hashes.SHA256(),label=None))
+            mgf=padding.MGF1(algorithm=hashes.SHA256()),
+            algorithm=hashes.SHA256(),
+            label=None
+        ))
         return c_text
     except ValueError as e:
         raise ValueError(f"RSA encryption error: {e}") from e
@@ -147,8 +168,10 @@ def decrypt_data_rsa(text: bytes, private_key) -> bytes:
     """
     try:
         dc_text = private_key.decrypt(text, padding.OAEP(
-        mgf=padding.MGF1(algorithm=hashes.SHA256()),
-        algorithm=hashes.SHA256(),label=None))
+            mgf=padding.MGF1(algorithm=hashes.SHA256()),
+            algorithm=hashes.SHA256(),
+            label=None
+        ))
         return dc_text
     except ValueError as e:
         raise ValueError(f"RSA decryption error: {e}") from e

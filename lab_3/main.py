@@ -1,5 +1,7 @@
 import sys
 import os
+import argparse
+from typing import Dict, List
 
 from PySide6.QtWidgets import (
     QApplication,
@@ -19,7 +21,13 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 
-from chacha20_functions import gen_chacha20_key, gen_nonce, encrypt_chacha20, decrypt_chacha20
+from chacha20_functions import (
+    gen_chacha20_key, 
+    gen_nonce, 
+    encrypt_chacha20, 
+    decrypt_chacha20,
+    set_crypto_config
+)
 from rsa_functions import (
     gen_rsa_keys,
     serialize_public_key,
@@ -28,29 +36,73 @@ from rsa_functions import (
     deserialize_private_key,
     encrypt_data_rsa,
     decrypt_data_rsa,
+    set_rsa_config
 )
 from file_utils import write_bin_file, read_bin_file, read_json_file, write_json_file
 
 
-class CryptoApp(QMainWindow):
+class ConfigManager:
+    
+    def __init__(self, config_path: str):
+        self.config_path = config_path
+        self.config = self._load_config()
+        self._apply_config_to_modules()
+    
+    def _load_config(self) -> dict:
+        """Load configuration from JSON file."""
+        try:
+            config = read_json_file(self.config_path)
+            if not config:
+                raise ValueError(f"Config file {self.config_path} is empty")
+            return config
+        except Exception as e:
+            print(f"Error loading config from {self.config_path}: {e}")
+            print("Using default configuration...")
+            return self._get_default_config()
+    
+    def _get_default_config(self) -> dict:
+        """Return default configuration."""
+        return {
+            "rsa_key_size": 2048,
+            "rsa_public_exponent": 65537,
+            "chacha20_key_size": 32,
+            "nonce_size": 16,
+            "rsa_encrypted_key_size": 256,
+            "settings_file": "settings.json"
+        }
+    
+    def _apply_config_to_modules(self) -> None:
+        """Apply configuration to crypto modules."""
+        crypto_config = {
+            "chacha20_key_size": self.config["chacha20_key_size"],
+            "nonce_size": self.config["nonce_size"]
+        }
+        set_crypto_config(crypto_config)
+        
+        rsa_config = {
+            "rsa_key_size": self.config["rsa_key_size"],
+            "rsa_public_exponent": self.config["rsa_public_exponent"]
+        }
+        set_rsa_config(rsa_config)
+    
+    def get(self, key: str, default=None):
+        """Get configuration value."""
+        return self.config.get(key, default)
+    
+    def get_settings_file(self) -> str:
+        """Get settings file path."""
+        return self.config.get("settings_file", "settings.json")
 
-    def __init__(self):
-        super().__init__()
-        self.encrypt_widgets = {}
-        self.decrypt_widgets = {}
-        self.keys_widgets = {}
-        self.settings = self.load_settings()
-        self.init_ui()
-        self.apply_settings()
 
-    def load_settings(self) -> dict:
-        """
-        Load application settings from JSON file.
-
-        Returns:
-            Dictionary with default settings if file doesn't exist
-            or merged settings from existing file.
-        """
+class SettingsManager:
+    """Manages application settings with JSON storage."""
+    
+    def __init__(self, settings_file: str):
+        self.settings_file = settings_file
+        self.settings = self._load_settings()
+    
+    def _load_settings(self) -> Dict[str, str]:
+        """Load settings from JSON file."""
         default_settings = {
             "initial_file": "",
             "encrypted_file": "",
@@ -58,25 +110,57 @@ class CryptoApp(QMainWindow):
             "public_key": "",
             "secret_key": "",
         }
-
-        loaded = read_json_file("settings.json")
-
+        
+        loaded = read_json_file(self.settings_file)
+        
         if loaded:
-            # Update default settings with loaded values
             for key in default_settings.keys():
                 if key in loaded and loaded[key]:
                     default_settings[key] = loaded[key]
             return default_settings
         else:
-            write_json_file("settings.json", default_settings)
+            write_json_file(self.settings_file, default_settings)
             return default_settings
-
-    def save_settings_to_file(self) -> None:
-        """Save current settings to JSON configuration file."""
+    
+    def save(self) -> None:
+        """Save current settings to file."""
         try:
-            write_json_file("settings.json", self.settings)
+            write_json_file(self.settings_file, self.settings)
         except Exception as e:
             print(f"Error saving settings: {e}")
+    
+    def update(self, key: str, value: str) -> None:
+        """Update a setting and save."""
+        if self.settings.get(key) != value:
+            self.settings[key] = value
+            self.save()
+    
+    def get(self, key: str, default: str = "") -> str:
+        """Get a setting value."""
+        return self.settings.get(key, default)
+    
+    def get_all_paths_from_widgets(self, widget_dicts: List[Dict]) -> Dict[str, str]:
+        """Collect all paths from widgets."""
+        paths = {}
+        for widgets in widget_dicts:
+            for key, widget in widgets.items():
+                paths[key] = widget.text().strip()
+        return paths
+
+
+class CryptoApp(QMainWindow):
+    """Main application window for CryptoVault."""
+
+    def __init__(self, config_manager: ConfigManager):
+        super().__init__()
+        self.config_manager = config_manager
+        self.settings_manager = SettingsManager(config_manager.get_settings_file())
+        self.encrypt_widgets = {}
+        self.decrypt_widgets = {}
+        self.keys_widgets = {}
+        
+        self.init_ui()
+        self.apply_settings()
 
     def init_ui(self) -> None:
         """Initialize the user interface components."""
@@ -117,12 +201,7 @@ class CryptoApp(QMainWindow):
         self.statusBar().setStyleSheet("color: #888;")
 
     def _get_stylesheet(self) -> str:
-        """
-        Get the application stylesheet.
-
-        Returns:
-            String containing CSS styles for the application.
-        """
+        """Get the application stylesheet."""
         return """
             QMainWindow {
                 background-color: #2b2b2b;
@@ -190,18 +269,7 @@ class CryptoApp(QMainWindow):
 
     def create_file_row(self, parent_layout: QVBoxLayout, label_text: str,
                         key_name: str, is_save: bool = False) -> QLineEdit:
-        """
-        Create a file selection row with label, text field, and browse button.
-
-        Args:
-            parent_layout: Layout to add the row to
-            label_text: Text for the label
-            key_name: Key name for settings dictionary
-            is_save: True for save dialog, False for open dialog
-
-        Returns:
-            QLineEdit widget for the file path
-        """
+        """Create a file selection row with label, text field, and browse button."""
         frame = QFrame()
         layout = QHBoxLayout(frame)
         layout.setContentsMargins(0, 5, 0, 5)
@@ -213,7 +281,7 @@ class CryptoApp(QMainWindow):
         line_edit = QLineEdit()
         line_edit.setObjectName(key_name)
         line_edit.textChanged.connect(
-            lambda text, k=key_name: self.update_file_settings(k, text)
+            lambda text, k=key_name: self.settings_manager.update(k, text)
         )
         layout.addWidget(line_edit)
 
@@ -334,63 +402,40 @@ class CryptoApp(QMainWindow):
         layout.addWidget(btn_generate)
 
     def browse_file(self, key: str, is_save: bool = False) -> None:
-        """
-        Open file browser dialog and update the corresponding widget.
-
-        Args:
-            key: Key name for the widget to update
-            is_save: True for save dialog, False for open dialog
-        """
+        """Open file browser dialog and update the corresponding widget."""
         if is_save:
             path, _ = QFileDialog.getSaveFileName(
-                self,
-                "Save file",
-                "",
-                "All Files (*.*)"
+                self, "Save file", "", "All Files (*.*)"
             )
         else:
             path, _ = QFileDialog.getOpenFileName(
-                self,
-                "Select file",
-                "",
-                "All Files (*.*)"
+                self, "Select file", "", "All Files (*.*)"
             )
 
         if path:
-            if key in self.encrypt_widgets:
-                self.encrypt_widgets[key].setText(path)
-            if key in self.decrypt_widgets:
-                self.decrypt_widgets[key].setText(path)
-            if key in self.keys_widgets:
-                self.keys_widgets[key].setText(path)
+            self._update_widget_text(key, path)
+            self.settings_manager.update(key, path)
 
-    def update_file_settings(self, key: str, value: str) -> None:
-        """
-        Update settings dictionary and save to file.
+    def _update_widget_text(self, key: str, value: str) -> None:
+        """Update widget text if it exists in any widget dictionary."""
+        for widgets in [self.encrypt_widgets, self.decrypt_widgets, self.keys_widgets]:
+            if key in widgets:
+                widgets[key].setText(value)
+                break
 
-        Args:
-            key: Settings key to update
-            value: New value for the setting
-        """
-        if self.settings.get(key) != value:
-            self.settings[key] = value
-            self.save_settings_to_file()
+    def _get_all_paths(self) -> Dict[str, str]:
+        """Collect all paths from all widgets."""
+        return self.settings_manager.get_all_paths_from_widgets([
+            self.encrypt_widgets, self.decrypt_widgets, self.keys_widgets
+        ])
 
     def generate_keys(self) -> None:
         """Generate new RSA key pair and save to files."""
-        paths = {}
-        for key, widget in self.encrypt_widgets.items():
-            paths[key] = widget.text().strip()
-        for key, widget in self.decrypt_widgets.items():
-            paths[key] = widget.text().strip()
-        for key, widget in self.keys_widgets.items():
-            paths[key] = widget.text().strip()
+        paths = self._get_all_paths()
 
         if not paths["public_key"] or not paths["secret_key"]:
             QMessageBox.warning(
-                self,
-                "Warning",
-                "Please specify paths to save both keys!",
+                self, "Warning", "Please specify paths to save both keys!"
             )
             return
 
@@ -406,122 +451,112 @@ class CryptoApp(QMainWindow):
 
             self.statusBar().showMessage("Keys successfully generated!")
             QMessageBox.information(
-                self, "Success",
-                "RSA keys successfully generated and saved!"
+                self, "Success", "RSA keys successfully generated and saved!"
             )
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Key generation error:\n{str(e)}")
 
     def apply_settings(self) -> None:
         """Apply saved settings to all UI widgets."""
-        for key, widget in self.encrypt_widgets.items():
-            if key in self.settings and self.settings[key]:
-                widget.setText(self.settings[key])
-
-        for key, widget in self.decrypt_widgets.items():
-            if key in self.settings and self.settings[key]:
-                widget.setText(self.settings[key])
-
-        for key, widget in self.keys_widgets.items():
-            if key in self.settings and self.settings[key]:
-                widget.setText(self.settings[key])
+        for widgets in [self.encrypt_widgets, self.decrypt_widgets, self.keys_widgets]:
+            for key, widget in widgets.items():
+                value = self.settings_manager.get(key)
+                if value:
+                    widget.setText(value)
 
     def encrypt_file(self, paths: dict) -> None:
-        """
-        Encrypt a file using hybrid encryption (RSA + ChaCha20).
-
-        Args:
-            paths: Dictionary containing file paths for encryption
-        """
+        """Encrypt a file using hybrid encryption (RSA + ChaCha20)."""
         plaintext = read_bin_file(paths["initial_file"])
-
         public_key = deserialize_public_key(paths["public_key"])
-
         symmetric_key = gen_chacha20_key()
         encrypted_symmetric_key = encrypt_data_rsa(symmetric_key, public_key)
-
         nonce = gen_nonce()
         ciphertext = encrypt_chacha20(plaintext, symmetric_key, nonce)
 
-        write_bin_file(paths["encrypted_file"], nonce + encrypted_symmetric_key + ciphertext)
+        write_bin_file(
+            paths["encrypted_file"], 
+            nonce + encrypted_symmetric_key + ciphertext
+        )
 
     def decrypt_file(self, paths: dict) -> None:
-        """
-        Decrypt a file using hybrid encryption (RSA + ChaCha20).
-
-        Args:
-            paths: Dictionary containing file paths for decryption
-        """
+        """Decrypt a file using hybrid encryption (RSA + ChaCha20)."""
         data = read_bin_file(paths["encrypted_file"])
-        nonce = data[:16]
-        encrypted_symmetric_key = data[16:16 + 256]
-        ciphertext = data[16 + 256:]
+        nonce_size = self.config_manager.get("nonce_size")
+        rsa_encrypted_size = self.config_manager.get("rsa_encrypted_key_size")
+        
+        nonce = data[:nonce_size]
+        encrypted_symmetric_key = data[nonce_size:nonce_size + rsa_encrypted_size]
+        ciphertext = data[nonce_size + rsa_encrypted_size:]
 
         private_key = deserialize_private_key(paths["secret_key"])
         symmetric_key = decrypt_data_rsa(encrypted_symmetric_key, private_key)
-
         plaintext = decrypt_chacha20(ciphertext, symmetric_key, nonce)
 
         write_bin_file(paths["decrypted_file"], plaintext)
 
-    def start_process(self, mode: str) -> None:
-        """
-        Start encryption or decryption process.
+    def _validate_paths(self, paths: Dict[str, str], required: List[str]) -> None:
+        """Validate that required paths exist and are accessible."""
+        for req in required:
+            if not paths[req]:
+                raise ValueError(f"Field '{req}' is empty.")
+            if req not in ["encrypted_file", "decrypted_file"] and not os.path.exists(paths[req]):
+                raise FileNotFoundError(f"File not found: {paths[req]}")
 
-        Args:
-            mode: Either "encrypt" or "decrypt"
-        """
-        paths = {}
-        for key, widget in self.encrypt_widgets.items():
-            paths[key] = widget.text().strip()
-        for key, widget in self.decrypt_widgets.items():
-            paths[key] = widget.text().strip()
-        for key, widget in self.keys_widgets.items():
-            paths[key] = widget.text().strip()
+    def start_process(self, mode: str) -> None:
+        """Start encryption or decryption process."""
+        paths = self._get_all_paths()
+        
+        required_fields = {
+            "encrypt": ["initial_file", "public_key", "encrypted_file"],
+            "decrypt": ["encrypted_file", "secret_key", "decrypted_file"]
+        }
+        required = required_fields[mode]
 
         try:
+            self._validate_paths(paths, required)
+            
             if mode == "encrypt":
-                required = ["initial_file", "public_key", "encrypted_file"]
-                for req in required:
-                    if not paths[req]:
-                        raise ValueError(f"Field '{req}' is empty.")
-                    if req != "encrypted_file" and not os.path.exists(paths[req]):
-                        raise FileNotFoundError(f"File not found: {paths[req]}")
-
                 self.encrypt_file(paths)
-                self.statusBar().showMessage("File successfully encrypted!")
-                QMessageBox.information(
-                    self,
-                    "Success",
-                    f"✅ File successfully encrypted!\n\nResult saved to:\n"
-                    f"{paths['encrypted_file']}",
-                )
-            else:  # mode == "decrypt"
-                required = ["encrypted_file", "secret_key", "decrypted_file"]
-                for req in required:
-                    if not paths[req]:
-                        raise ValueError(f"Field '{req}' is empty.")
-                    if not os.path.exists(paths[req]):
-                        raise FileNotFoundError(f"File not found: {paths[req]}")
-
+                success_msg = "File successfully encrypted!"
+                result_path = paths["encrypted_file"]
+            else:
                 self.decrypt_file(paths)
-                self.statusBar().showMessage("File successfully decrypted!")
-                QMessageBox.information(
-                    self,
-                    "Success",
-                    f"✅ File successfully decrypted!\n\nResult saved to:\n"
-                    f"{paths['decrypted_file']}",
-                )
+                success_msg = "File successfully decrypted!"
+                result_path = paths["decrypted_file"]
+            
+            self.statusBar().showMessage(success_msg)
+            QMessageBox.information(
+                self,
+                "Success",
+                f"✅ {success_msg}\n\nResult saved to:\n{result_path}",
+            )
 
         except Exception as e:
             self.statusBar().showMessage(f"Error: {str(e)}")
             QMessageBox.critical(self, "Error", str(e))
 
 
+def parse_arguments() -> argparse.Namespace:
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(
+        description="CryptoVault - Secure Encryption Application"
+    )
+    parser.add_argument(
+        "--config", "-c",
+        type=str,
+        default="config.json",
+        help="Path to configuration JSON file (default: config.json)"
+    )
+    return parser.parse_args()
+
+
 def main() -> None:
+
+    args = parse_arguments()
+    config_manager = ConfigManager(args.config)
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
-    window = CryptoApp()
+    window = CryptoApp(config_manager)
     window.show()
     sys.exit(app.exec_())
 

@@ -2,7 +2,6 @@
   "initial_file": "input.txt",
   "encrypted_file": "encrypted.txt",
   "decrypted_file": "decrypted.txt",
-  "symmetric_key": "keys/sym.pem",
   "public_key": "keys/public.pem",
   "secret_key": "keys/private.pem"
 }
