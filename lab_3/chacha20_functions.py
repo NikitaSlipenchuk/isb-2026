@@ -2,43 +2,33 @@ import os
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms
 
 
-def gen_chacha20_key(key_size: int) -> bytes:
+def gen_random_bytes(size: int) -> bytes:
     """
-    create symmetric key of specified size
-
-    args:
-        key_size: size of key in bytes (16 or 32)
-
-    return:
-        a random sequence of key_size bytes
+    Generate cryptographically secure random bytes.
+    
+    Args:
+        size: Number of random bytes to generate
+        
+    Returns:
+        Random bytes of specified size
     """
-    return os.urandom(key_size)
-
-
-def gen_nonce(nonce_size: int) -> bytes:
-    """
-    create one-time nonce number
-
-    args:
-        nonce_size: size of nonce in bytes
-
-    return:
-        a random sequence of nonce_size bytes
-    """
-    return os.urandom(nonce_size)
+    return os.urandom(size)
 
 
 def encrypt_chacha20(data: bytes, key: bytes, nonce: bytes) -> bytes:
     """
-    encrypt data with chacha20 cipher
-
-    args:
-        data: source data to encrypt
-        key: symmetric key
-        nonce: one-time nonce number
-
-    return:
-        encrypted data
+    Encrypt data with ChaCha20 cipher.
+    
+    Args:
+        data: Source data to encrypt
+        key: Symmetric key
+        nonce: One-time nonce number
+        
+    Returns:
+        Encrypted data
+        
+    Raises:
+        RuntimeError: If encryption fails due to invalid parameters or other errors
     """
     try:
         cipher = Cipher(algorithms.ChaCha20(key, nonce), mode=None)
@@ -60,15 +50,18 @@ def encrypt_chacha20(data: bytes, key: bytes, nonce: bytes) -> bytes:
 
 def decrypt_chacha20(data: bytes, key: bytes, nonce: bytes) -> bytes:
     """
-    decrypt data with chacha20 cipher
-
-    args:
-        data: source data to decrypt
-        key: symmetric key
-        nonce: one-time nonce number
-
-    return:
-        decrypted data
+    Decrypt data with ChaCha20 cipher.
+    
+    Args:
+        data: Source data to decrypt
+        key: Symmetric key
+        nonce: One-time nonce number
+        
+    Returns:
+        Decrypted data
+        
+    Raises:
+        RuntimeError: If decryption fails due to invalid parameters or other errors
     """
     try:
         cipher = Cipher(algorithms.ChaCha20(key, nonce), mode=None)

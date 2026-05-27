@@ -22,8 +22,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 
 from chacha20_functions import (
-    gen_chacha20_key, 
-    gen_nonce, 
+    gen_random_bytes,
     encrypt_chacha20, 
     decrypt_chacha20,
 )
@@ -434,15 +433,14 @@ class CryptoApp(QMainWindow):
             key: Key name for the widget to update
             is_save: True for save dialog, False for open dialog (default: False)
         """
-        match is_save:
-            case True:
-                path, _ = QFileDialog.getSaveFileName(
-                    self, "Save file", "", "All Files (*.*)"
-                )
-            case False:
-                path, _ = QFileDialog.getOpenFileName(
-                    self, "Select file", "", "All Files (*.*)"
-                )
+        if is_save:
+            path, _ = QFileDialog.getSaveFileName(
+                self, "Save file", "", "All Files (*.*)"
+            )
+        else:
+            path, _ = QFileDialog.getOpenFileName(
+                self, "Select file", "", "All Files (*.*)"
+            )
 
         if path:
             self._update_widget_text(key, path)
@@ -541,9 +539,11 @@ class CryptoApp(QMainWindow):
         
         plaintext = read_bin_file(paths["initial_file"])
         public_key = deserialize_public_key(paths["public_key"])
-        symmetric_key = gen_chacha20_key(chacha20_key_size)
+        
+
+        symmetric_key = gen_random_bytes(chacha20_key_size)
         encrypted_symmetric_key = encrypt_data_rsa(symmetric_key, public_key)
-        nonce = gen_nonce(nonce_size)
+        nonce = gen_random_bytes(nonce_size)
         ciphertext = encrypt_chacha20(plaintext, symmetric_key, nonce)
 
         write_bin_file(
@@ -616,26 +616,24 @@ class CryptoApp(QMainWindow):
             "decrypt": ["encrypted_file", "secret_key", "decrypted_file"]
         }
         
-        match mode:
-            case "encrypt":
-                required = required_fields["encrypt"]
-            case "decrypt":
-                required = required_fields["decrypt"]
-            case _:
-                raise ValueError(f"Invalid mode: {mode}")
+        if mode == "encrypt":
+            required = required_fields["encrypt"]
+        elif mode == "decrypt":
+            required = required_fields["decrypt"]
+        else:
+            raise ValueError(f"Invalid mode: {mode}")
 
         try:
             self._validate_paths(paths, required)
             
-            match mode:
-                case "encrypt":
-                    self.encrypt_file(paths)
-                    success_msg = "File successfully encrypted!"
-                    result_path = paths["encrypted_file"]
-                case "decrypt":
-                    self.decrypt_file(paths)
-                    success_msg = "File successfully decrypted!"
-                    result_path = paths["decrypted_file"]
+            if mode == "encrypt":
+                self.encrypt_file(paths)
+                success_msg = "File successfully encrypted!"
+                result_path = paths["encrypted_file"]
+            else:
+                self.decrypt_file(paths)
+                success_msg = "File successfully decrypted!"
+                result_path = paths["decrypted_file"]
             
             self.statusBar().showMessage(success_msg)
             QMessageBox.information(

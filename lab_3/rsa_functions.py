@@ -12,12 +12,16 @@ def gen_rsa_keys(key_size: int, public_exponent: int) -> Tuple[rsa.RSAPrivateKey
     """
     Generate public and private keys for RSA
 
-    args:
-        key_size: size of RSA key in bits
+    Args:
+        key_size: Size of RSA key in bits
         public_exponent: RSA public exponent
 
-    return:
-        pair of public and private RSA keys
+    Returns:
+        Tuple containing (private_key, public_key)
+        
+    Raises:
+        ValueError: If RSA parameters are invalid
+        RuntimeError: If key generation fails
     """
     try:
         keys = rsa.generate_private_key(
@@ -37,9 +41,13 @@ def serialize_public_key(public_key, public_key_path: str) -> None:
     """
     Save public key in PEM format
 
-    args:
+    Args:
         public_key: public RSA key
         public_key_path: path to save PEM public key
+        
+    Raises:
+        OSError: If directory creation or file writing fails
+        TypeError: If key type is invalid
     """
     try:
         os.makedirs(os.path.dirname(public_key_path), exist_ok=True)
@@ -58,9 +66,13 @@ def serialize_private_key(private_key, private_key_path: str) -> None:
     """
     Save private key in PEM format
 
-    args:
+    Args:
         private_key: private RSA key
         private_key_path: path to save PEM private key
+        
+    Raises:
+        OSError: If directory creation or file writing fails
+        TypeError: If key type is invalid
     """
     try:
         os.makedirs(os.path.dirname(private_key_path), exist_ok=True)
@@ -80,11 +92,15 @@ def deserialize_public_key(public_key_path: str) -> rsa.RSAPublicKey:
     """
     Load public key from PEM file
 
-    args:
+    Args:
         public_key_path: path to PEM public key file
 
-    return:
-        public RSA key
+    Returns:
+        Public RSA key
+        
+    Raises:
+        FileNotFoundError: If key file doesn't exist
+        ValueError: If PEM loading fails
     """
     try:
         pem_data = read_bin_file(public_key_path)
@@ -100,11 +116,15 @@ def deserialize_private_key(private_key_path: str) -> rsa.RSAPrivateKey:
     """
     Load private key from PEM file
 
-    args:
+    Args:
         private_key_path: path to PEM private key file
 
-    return:
-        private RSA key
+    Returns:
+        Private RSA key
+        
+    Raises:
+        FileNotFoundError: If key file doesn't exist
+        ValueError: If PEM loading fails
     """
     try:
         pem_data = read_bin_file(private_key_path)
@@ -120,12 +140,17 @@ def encrypt_data_rsa(text: bytes, public_key) -> bytes:
     """
     Encrypt data with RSA public key
 
-    args:
+    Args:
         text: data to encrypt
         public_key: public RSA key
     
-    return:
-        encrypted data
+    Returns:
+        Encrypted data
+        
+    Raises:
+        ValueError: If encryption fails
+        TypeError: If key type is invalid
+        RuntimeError: If cryptographic error occurs
     """
     try: 
         c_text = public_key.encrypt(text, padding.OAEP(
@@ -148,12 +173,17 @@ def decrypt_data_rsa(text: bytes, private_key) -> bytes:
     """
     Decrypt data with RSA private key
 
-    args:
+    Args:
         text: data to decrypt
         private_key: private RSA key
     
-    return:
-        decrypted data
+    Returns:
+        Decrypted data
+        
+    Raises:
+        ValueError: If decryption fails
+        TypeError: If key type is invalid
+        RuntimeError: If cryptographic error occurs
     """
     try:
         dc_text = private_key.decrypt(text, padding.OAEP(
