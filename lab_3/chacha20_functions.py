@@ -17,9 +17,9 @@ def gen_nonce():
     create 96 bits one-time nonce number
 
     return:
-        A random sequence of 12 bytes 
+        A random sequence of 16 bytes 
     """
-    return os.urandom(12)
+    return os.urandom(16)
 
 
 def encrypt_chacha20(data:bytes, key:bytes, nonce:bytes) -> bytes:
@@ -39,17 +39,17 @@ def encrypt_chacha20(data:bytes, key:bytes, nonce:bytes) -> bytes:
         encryptor = cipher.encryptor()
         return encryptor.update(data)
     except TypeError as e:
-        raise RuntimeError(f"ChaCha20 encryption error - invalid parameter type: {e}")
+        raise RuntimeError(f"ChaCha20 encryption error - invalid parameter type: {e}") from e
     except ValueError as e:
-        raise RuntimeError(f"ChaCha20 encryption error - invalid parameter value: {e}")
+        raise RuntimeError(f"ChaCha20 encryption error - invalid parameter value: {e}") from e
     except AttributeError as e:
-        raise RuntimeError(f"ChaCha20 encryption error - missing attribute: {e}")
+        raise RuntimeError(f"ChaCha20 encryption error - missing attribute: {e}") from e
     except OverflowError as e:
-        raise RuntimeError(f"ChaCha20 encryption error - numeric overflow: {e}")
+        raise RuntimeError(f"ChaCha20 encryption error - numeric overflow: {e}") from e
     except MemoryError as e:
-        raise RuntimeError(f"ChaCha20 encryption error - insufficient memory: {e}")
+        raise RuntimeError(f"ChaCha20 encryption error - insufficient memory: {e}") from e
     except Exception as e:
-        raise RuntimeError(f"ChaCha20 encryption error: {e}")
+        raise RuntimeError(f"ChaCha20 encryption error: {e}") from e
     
 
 def decrypt_chacha20(data:bytes, key:bytes, nonce:bytes) -> bytes:
@@ -69,14 +69,14 @@ def decrypt_chacha20(data:bytes, key:bytes, nonce:bytes) -> bytes:
         decryptor = cipher.decryptor()
         return decryptor.update(data)
     except TypeError as e:
-        raise RuntimeError(f"Wrong parameter type - key/nonce/data must be bytes: {e}")
+        raise RuntimeError(f"Wrong parameter type - key/nonce/data must be bytes: {e}") from e
     except ValueError as e:
-        raise RuntimeError(f"Invalid key (32 bytes) or nonce (12/24 bytes) length: {e}")
+        raise RuntimeError(f"Invalid key (32 bytes) or nonce (12/24 bytes) length: {e}") from e
     except AttributeError as e:
-        raise RuntimeError(f"Missing cryptography module or class: {e}")
+        raise RuntimeError(f"Missing cryptography module or class: {e}") from e
     except MemoryError as e:
-        raise RuntimeError(f"Memory error during decryption: {e}")
+        raise RuntimeError(f"Memory error during decryption: {e}") from e
     except OverflowError as e:
-        raise RuntimeError(f"Internal counter overflow: {e}")
+        raise RuntimeError(f"Internal counter overflow: {e}") from e
     except Exception as e:
-        raise RuntimeError(f"Unexpected ChaCha20 decryption error: {e}")
+        raise RuntimeError(f"Unexpected ChaCha20 decryption error: {e}") from e
