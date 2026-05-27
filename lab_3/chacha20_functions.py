@@ -2,52 +2,43 @@ import os
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms
 
 
-_crypto_config = {
-    "chacha20_key_size": 32,
-    "nonce_size": 16
-}
-
-
-def set_crypto_config(config: dict) -> None:
-    """Set crypto configuration from external source."""
-    global _crypto_config
-    if "chacha20_key_size" in config:
-        _crypto_config["chacha20_key_size"] = config["chacha20_key_size"]
-    if "nonce_size" in config:
-        _crypto_config["nonce_size"] = config["nonce_size"]
-
-
-def gen_chacha20_key():
+def gen_chacha20_key(key_size: int) -> bytes:
     """
-    create 256 bits symmetric key
+    create symmetric key of specified size
+
+    args:
+        key_size: size of key in bytes (16 or 32)
 
     return:
-        a random sequence of 32 bytes 
-    """ 
-    return os.urandom(_crypto_config["chacha20_key_size"])
-
-
-def gen_nonce():
+        a random sequence of key_size bytes
     """
-    create 96 bits one-time nonce number
+    return os.urandom(key_size)
+
+
+def gen_nonce(nonce_size: int) -> bytes:
+    """
+    create one-time nonce number
+
+    args:
+        nonce_size: size of nonce in bytes
 
     return:
-        A random sequence of 16 bytes 
+        a random sequence of nonce_size bytes
     """
-    return os.urandom(_crypto_config["nonce_size"])
+    return os.urandom(nonce_size)
 
 
 def encrypt_chacha20(data: bytes, key: bytes, nonce: bytes) -> bytes:
     """
-    encrypt data with chacha20 ciper
+    encrypt data with chacha20 cipher
 
     args:
         data: source data to encrypt
-        key: symmetric key 
+        key: symmetric key
         nonce: one-time nonce number
 
     return:
-        ecrypt data
+        encrypted data
     """
     try:
         cipher = Cipher(algorithms.ChaCha20(key, nonce), mode=None)
@@ -69,15 +60,15 @@ def encrypt_chacha20(data: bytes, key: bytes, nonce: bytes) -> bytes:
 
 def decrypt_chacha20(data: bytes, key: bytes, nonce: bytes) -> bytes:
     """
-    decrypt data with chacha20 ciper
+    decrypt data with chacha20 cipher
 
     args:
         data: source data to decrypt
-        key: symmetric key 
+        key: symmetric key
         nonce: one-time nonce number
 
     return:
-        decrypt data
+        decrypted data
     """
     try:
         cipher = Cipher(algorithms.ChaCha20(key, nonce), mode=None)
@@ -86,7 +77,7 @@ def decrypt_chacha20(data: bytes, key: bytes, nonce: bytes) -> bytes:
     except TypeError as e:
         raise RuntimeError(f"Wrong parameter type - key/nonce/data must be bytes: {e}") from e
     except ValueError as e:
-        raise RuntimeError(f"Invalid key (32 bytes) or nonce (12/24 bytes) length: {e}") from e
+        raise RuntimeError(f"Invalid key or nonce length: {e}") from e
     except AttributeError as e:
         raise RuntimeError(f"Missing cryptography module or class: {e}") from e
     except MemoryError as e:

@@ -8,32 +8,21 @@ from cryptography.exceptions import InvalidSignature, UnsupportedAlgorithm
 from file_utils import write_bin_file, read_bin_file
 
 
-_rsa_config = {
-    "rsa_key_size": 2048,
-    "rsa_public_exponent": 65537
-}
-
-
-def set_rsa_config(config: dict) -> None:
-    """Set RSA configuration from external source."""
-    global _rsa_config
-    if "rsa_key_size" in config:
-        _rsa_config["rsa_key_size"] = config["rsa_key_size"]
-    if "rsa_public_exponent" in config:
-        _rsa_config["rsa_public_exponent"] = config["rsa_public_exponent"]
-
-
-def gen_rsa_keys() -> Tuple[rsa.RSAPrivateKey, rsa.RSAPublicKey]:
+def gen_rsa_keys(key_size: int, public_exponent: int) -> Tuple[rsa.RSAPrivateKey, rsa.RSAPublicKey]:
     """
     Generate public and private keys for RSA
-    
+
+    args:
+        key_size: size of RSA key in bits
+        public_exponent: RSA public exponent
+
     return:
         pair of public and private RSA keys
     """
     try:
         keys = rsa.generate_private_key(
-            public_exponent=_rsa_config["rsa_public_exponent"], 
-            key_size=_rsa_config["rsa_key_size"]
+            public_exponent=public_exponent,
+            key_size=key_size
         )
         private_key = keys
         public_key = keys.public_key()
